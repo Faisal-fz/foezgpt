@@ -1,4 +1,5 @@
 import { requireUser } from "@/features/auth/action/require-user";
+import { toBlobFileUrl } from "@/features/ai/utils/blob-files";
 import { auth } from "@clerk/nextjs/server";
 import { put } from "@vercel/blob";
 import { randomUUID } from "crypto";
@@ -58,13 +59,13 @@ export async function POST(req: Request) {
 
   try {
     const blob = await put(pathname, file, {
-      access: "public",
+      access: "private",
       contentType: mediaType,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
     return Response.json({
-      url: blob.url,
+      url: toBlobFileUrl(blob.pathname),
       mediaType,
       filename: file.name,
     });
