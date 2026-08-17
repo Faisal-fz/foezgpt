@@ -6,6 +6,7 @@ import {
   GlobeIcon,
   ImageIcon,
   PaperclipIcon,
+  UploadIcon,
 } from "lucide-react";
 import type { FileUIPart } from "ai";
 import { toast } from "sonner";
@@ -62,9 +63,11 @@ export function ChatComposer({
   const [value, setValue] = React.useState("");
   const [webSearchEnabled, setWebSearchEnabled] = React.useState(false);
   const [attachments, setAttachments] = React.useState<ComposerAttachment[]>([]);
+  const [isDragging, setIsDragging] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
+  const dragDepthRef = React.useRef(0);
 
   React.useEffect(() => {
     if (autoFocus) {
@@ -79,8 +82,10 @@ export function ChatComposer({
     !isUploading &&
     (value.trim().length > 0 || readyFiles.length > 0);
 
-  async function handleFilesSelected(files: FileList | null) {
-    if (!files?.length) return;
+  async function handleFilesSelected(files: FileList | File[] | null) {
+    if (!files || (files instanceof FileList ? files.length === 0 : files.length === 0)) {
+      return;
+    }
 
     const remainingSlots = MAX_ATTACHMENTS - attachments.length;
     if (remainingSlots <= 0) {
@@ -147,6 +152,33 @@ export function ChatComposer({
     });
   }
 
+  function handleDragEnter(event: React.DragEvent) {
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    if (event.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragOver(event: React.DragEvent) {
+    event.preventDefault();
+  }
+
+  function handleDragLeave(event: React.DragEvent) {
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDragging(false);
+    void handleFilesSelected(event.dataTransfer.files);
+  }
+
   async function handleSubmit(event?: React.FormEvent) {
     event?.preventDefault();
 
@@ -184,9 +216,28 @@ export function ChatComposer({
   return (
     <form
       onSubmit={(event) => void handleSubmit(event)}
-      className={cn("mx-auto w-full max-w-3xl px-4 pb-4 md:px-6", className)}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn("relative mx-auto w-full max-w-3xl px-4 pb-4 md:px-6", className)}
     >
-      <InputGroup className="h-auto min-h-14 flex-col rounded-3xl border-border/80 bg-background shadow-sm dark:bg-input/40">
+      <InputGroup
+        className={cn(
+          "relative h-auto min-h-14 flex-col rounded-3xl border-border/80 bg-background shadow-sm transition-all dark:bg-input/40",
+          "focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-md",
+          isDragging && "ring-2 ring-primary/40"
+        )}
+      >
+        {isDragging ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl border-2 border-dashed border-primary/50 bg-background/80 backdrop-blur-sm">
+            <p className="flex items-center gap-2 text-sm font-medium text-primary">
+              <UploadIcon className="size-4" />
+              Drop files here
+            </p>
+          </div>
+        ) : null}
+
         <ChatAttachmentPreview
           attachments={attachments}
           onRemove={handleRemoveAttachment}
@@ -266,6 +317,9 @@ export function ChatComposer({
                         disabled={isSending}
                         aria-label="Search the web"
                         aria-pressed={webSearchEnabled}
+                        className={cn(
+                          webSearchEnabled && "shadow-[0_0_12px_color-mix(in_oklch,var(--primary)_45%,transparent)]"
+                        )}
                         onClick={() => setWebSearchEnabled((current) => !current)}
                       >
                         <GlobeIcon />
@@ -304,7 +358,9 @@ export function ChatComposer({
         </div>
       </InputGroup>
       <p className="mt-2 text-center text-xs text-muted-foreground">
-        ChaiGPT can make mistakes. Check important info.
+        {webSearchEnabled
+          ? "Web search is on — answers can include live sources."
+          : "ChaiGPT can make mistakes. Check important info."}
       </p>
     </form>
   );

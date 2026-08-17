@@ -2,6 +2,7 @@
 
 import { isTextUIPart, type UIMessage } from "ai";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { FREE_MESSAGE_LIMIT } from "@/features/billing/constants";
 import { prisma } from "@/lib/db";
 
 /** Extracts plain text from an AI SDK `UIMessage` by joining all text parts. */
@@ -35,7 +36,10 @@ export async function loadChatMessages(
   conversationId: string
 ): Promise<UIMessage[]> {
   const rows = await prisma.message.findMany({
-    where: { conversationId },
+    where: {
+      conversationId,
+      status: { not: "ERROR" },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -48,7 +52,92 @@ export async function loadChatMessages(
 
 type SaveChatMessagesOptions = {
   updateTitle?: boolean;
+  status?: "PENDING" | "COMPLETE";
 };
+
+export type PendingMessageResult =
+  | { ok: true }
+  | { ok: false; used: number; limit: number };
+
+/**
+ * Atomically checks quota and saves a new user message as PENDING.
+ * Only COMPLETE user messages count toward the free tier limit.
+ */
+export async function savePendingUserMessage(
+  userId: string,
+  conversationId: string,
+  message: UIMessage
+): Promise<PendingMessageResult> {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { plan: true },
+    });
+
+    if (user.plan !== "PRO") {
+      const used = await tx.message.count({
+        where: {
+          role: "USER",
+          status: "COMPLETE",
+          conversation: { userId },
+        },
+      });
+
+      if (used >= FREE_MESSAGE_LIMIT) {
+        return { ok: false, used, limit: FREE_MESSAGE_LIMIT };
+      }
+    }
+
+    const content = getMessageText(message);
+
+    await tx.message.upsert({
+      where: { id: message.id },
+      create: {
+        id: message.id,
+        conversationId,
+        role: "USER",
+        status: "PENDING",
+        content,
+        parts: message.parts as Prisma.InputJsonValue,
+      },
+      update: {
+        content,
+        parts: message.parts as Prisma.InputJsonValue,
+        status: "PENDING",
+      },
+    });
+
+    const conversation = await tx.conversation.findUniqueOrThrow({
+      where: { id: conversationId },
+      select: { title: true },
+    });
+
+    const firstUserText = content.trim();
+
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessageAt: new Date(),
+        title:
+          conversation.title === "New Chat" && firstUserText
+            ? firstUserText.slice(0, 48)
+            : conversation.title,
+      },
+    });
+
+    return { ok: true };
+  });
+}
+
+export async function markMessageStatus(
+  messageId: string,
+  status: "COMPLETE" | "ERROR" | "PENDING"
+) {
+  await prisma.message.updateMany({
+    where: { id: messageId },
+    data: { status },
+  });
+}
 
 /**
  * Upserts AI SDK `UIMessage`s into the database for a conversation.
@@ -62,7 +151,7 @@ export async function saveChatMessages(
   messages: UIMessage[],
   options: SaveChatMessagesOptions = {}
 ) {
-  const { updateTitle = true } = options;
+  const { updateTitle = true, status = "COMPLETE" } = options;
 
   for (const message of messages) {
     if (message.role === "system") continue;
@@ -76,14 +165,14 @@ export async function saveChatMessages(
         id: message.id,
         conversationId,
         role,
-        status: "COMPLETE",
+        status,
         content,
         parts: message.parts as Prisma.InputJsonValue,
       },
       update: {
         content,
         parts: message.parts as Prisma.InputJsonValue,
-        status: "COMPLETE",
+        status,
       },
     });
   }

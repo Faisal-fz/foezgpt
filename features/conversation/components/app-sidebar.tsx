@@ -2,18 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
+  MessageSquarePlusIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
   PlusIcon,
+  SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +31,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +48,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SidebarUpgradeNudge } from "@/features/billing/components/sidebar-upgrade-nudge";
 import {
   useConversations,
   useDeleteConversation,
@@ -54,10 +67,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: conversations, isLoading } = useConversations();
 
-  
-// Get the active conversation id from the pathname (e.g. /c/123)
-// pathname.split("/")[2] is the third part of the pathname (the conversation id)
-//  firstparam = / , secondparam = c , thirdparam = 123
   const activeId = pathname.startsWith("/c/")
     ? pathname.split("/")[2]
     : undefined;
@@ -72,8 +81,8 @@ export function AppSidebar() {
               className="font-semibold tracking-tight"
               render={<Link href="/" />}
             >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm text-primary-foreground">
-                C
+              <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-sm font-bold text-primary-foreground shadow-sm">
+                茶
               </span>
               <span>ChaiGPT</span>
             </SidebarMenuButton>
@@ -134,7 +143,19 @@ function ChatList({
 
   if (!conversations?.length) {
     return (
-      <p className="px-2 py-1.5 text-xs text-muted-foreground">No chats yet</p>
+      <div className="flex flex-col items-start gap-2 px-2 py-3 group-data-[collapsible=icon]:hidden">
+        <p className="text-xs text-muted-foreground">No chats yet</p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          render={<Link href="/" />}
+          nativeButton={false}
+        >
+          <MessageSquarePlusIcon />
+          Start your first chat
+        </Button>
+      </div>
     );
   }
 
@@ -163,12 +184,18 @@ function ChatItem({
   const deleteConversation = useDeleteConversation(
     isActive ? conversation.id : undefined
   );
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [title, setTitle] = useState(conversation.title);
 
-  /** Prompts the user to rename the conversation and persists the new title. */
-  function handleRename() {
-    const next = window.prompt("Rename chat", conversation.title);
-    if (!next || next.trim() === conversation.title) return;
+  function handleRenameSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const next = title.trim();
+    if (!next || next === conversation.title) {
+      setRenameOpen(false);
+      return;
+    }
     updateConversation.mutate({ id: conversation.id, title: next });
+    setRenameOpen(false);
   }
 
   return (
@@ -179,6 +206,9 @@ function ChatItem({
         render={<Link href={`/c/${conversation.id}`} />}
         className={cn(isActive && "font-medium")}
       >
+        {conversation.isPinned ? (
+          <PinIcon className="size-3.5 shrink-0 text-primary" />
+        ) : null}
         <span className="truncate">{conversation.title}</span>
       </SidebarMenuButton>
 
@@ -195,7 +225,12 @@ function ChatItem({
           <span className="sr-only">Chat actions</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="start">
-          <DropdownMenuItem onClick={handleRename}>
+          <DropdownMenuItem
+            onClick={() => {
+              setTitle(conversation.title);
+              setRenameOpen(true);
+            }}
+          >
             <PencilIcon />
             Rename
           </DropdownMenuItem>
@@ -220,26 +255,62 @@ function ChatItem({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <form onSubmit={handleRenameSubmit} className="grid gap-6">
+            <DialogHeader>
+              <DialogTitle>Rename chat</DialogTitle>
+              <DialogDescription>
+                Give this conversation a name you will recognize later.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              autoFocus
+              maxLength={80}
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRenameOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </SidebarMenuItem>
   );
 }
 
-/** Footer menu with theme toggle and Clerk user account button. */
+/** Footer menu with upgrade nudge, pricing, theme toggle, and Clerk user account button. */
 function SidebarFooterMenu() {
-  const { resolvedTheme, setTheme } = useTheme();
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        <SidebarUpgradeNudge />
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          tooltip="Upgrade"
+          render={<Link href="/pricing" />}
         >
-          Toggle theme
-        </Button>
+          <SparklesIcon />
+          <span>Upgrade</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <div className="flex items-center justify-between gap-2 px-1 py-1.5 group-data-[collapsible=icon]:justify-center">
+          <span className="truncate text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
+            Theme
+          </span>
+          <ModeToggle />
+        </div>
       </SidebarMenuItem>
       <SidebarMenuItem>
         <div className="flex items-center gap-2 px-1 py-1.5">

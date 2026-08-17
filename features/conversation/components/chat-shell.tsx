@@ -1,6 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/features/conversation/components/app-sidebar";
+import { ChatCommandMenu } from "@/features/conversation/components/chat-command-menu";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 /**
@@ -13,6 +14,7 @@ export function ChatShell({ children }: { children: React.ReactNode }) {
       <SidebarInset className="min-h-svh overflow-hidden">
         {children}
       </SidebarInset>
+      <ChatCommandMenu />
     </SidebarProvider>
   );
 }

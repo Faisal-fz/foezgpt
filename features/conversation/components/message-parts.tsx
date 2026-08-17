@@ -78,12 +78,17 @@ function FilePart({ part }: { part: FileUIPart }) {
 type MessagePartsProps = {
   message: UIMessage;
   className?: string;
+  isAnimating?: boolean;
 };
 
 /**
  * Renders all parts of a UIMessage — text, files, web search sources, and tool states.
  */
-export function MessageParts({ message, className }: MessagePartsProps) {
+export function MessageParts({
+  message,
+  className,
+  isAnimating = false,
+}: MessagePartsProps) {
   const sourceParts = message.parts.filter(isSourceUrlPart);
 
   return (
@@ -92,7 +97,9 @@ export function MessageParts({ message, className }: MessagePartsProps) {
         if (isTextUIPart(part)) {
           if (!part.text) return null;
           return (
-            <MessageResponse key={`text-${index}`}>{part.text}</MessageResponse>
+            <MessageResponse key={`text-${index}`} isAnimating={isAnimating}>
+              {part.text}
+            </MessageResponse>
           );
         }
 

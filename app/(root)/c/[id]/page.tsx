@@ -1,4 +1,5 @@
 import { loadChatMessages } from '@/features/ai/action/chat-store';
+import { fetchChatQuota } from '@/features/billing/action/get-chat-quota';
 import { getConversation } from '@/features/conversation/action/conversation-actions';
 import { ConversationView } from '@/features/conversation/components/conversation-view';
 import { notFound } from 'next/navigation';
@@ -20,14 +21,17 @@ const page = async({params}:ConversationPageProps) => {
       notFound()
     }
 
-    const initialMessages = await loadChatMessages(id);
-    
+    const [initialMessages, initialQuota] = await Promise.all([
+      loadChatMessages(id),
+      fetchChatQuota(),
+    ]);
 
   return (
     <ConversationView
       key={id}
       conversationId={id}
       initialMessages={initialMessages}
+      initialQuota={initialQuota}
     />
   )
 }

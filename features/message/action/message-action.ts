@@ -1,5 +1,6 @@
 "use server";
 import { requireUser } from "@/features/auth/action/require-user";
+import { getChatQuota } from "@/features/billing/utils/chat-quota";
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -31,6 +32,13 @@ export async function createMessage(conversationId: string, content: string) {
 
   const trimmedContent = content.trim();
   if(trimmedContent.length === 0) throw new Error("content is required");
+
+  const quota = await getChatQuota(user.id);
+  if (!quota.allowed) {
+    throw new Error(
+      "You've used your 3 free messages. Upgrade to continue chatting."
+    );
+  }
 
   const message = await prisma.message.create({
     data: {
