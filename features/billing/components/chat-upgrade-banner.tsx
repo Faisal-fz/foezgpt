@@ -33,7 +33,7 @@ export function ChatUpgradeBanner({
             <div className="min-w-0 space-y-3">
               <div className="space-y-1">
                 <h2 className="font-heading text-base font-medium">
-                  You&apos;ve unlocked the full ChaiGPT experience
+                  You&apos;ve unlocked the full FoezGPT experience
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {used}/{limit} free messages used. Upgrade to Pro for unlimited chatting.

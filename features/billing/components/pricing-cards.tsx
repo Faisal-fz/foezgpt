@@ -54,7 +54,7 @@ export function PricingCards({ quota }: PricingCardsProps) {
               <CardTitle>Free</CardTitle>
               {!isPro ? <Badge variant="secondary">Current</Badge> : null}
             </div>
-            <CardDescription>For trying ChaiGPT</CardDescription>
+            <CardDescription>For trying FoezGPT</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-left">
             <p className="text-3xl font-semibold">

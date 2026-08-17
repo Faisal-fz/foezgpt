@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChaiGPT",
+  title: "FoezGPT",
   description: "A friendly AI chat assistant for writing, coding, and exploring ideas.",
 };
 

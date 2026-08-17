@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: getChatModel(conversation.model),
     system:
-      conversation.systemPrompt ?? "You are ChaiGpt , a helpful assistant",
+      conversation.systemPrompt ?? "You are FoezGPT, a helpful assistant",
     messages: await convertToModelMessages(modelMessages),
     ...(webSearchEnabled ? { tools: getWebSearchTools() } : {}),
     onError: async () => {

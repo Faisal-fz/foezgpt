@@ -56,7 +56,7 @@ type ChatComposerProps = {
 export function ChatComposer({
   onSend,
   isSending = false,
-  placeholder = "Message ChaiGPT…",
+  placeholder = "Message FoezGPT…",
   className,
   autoFocus = false,
 }: ChatComposerProps) {
@@ -360,7 +360,7 @@ export function ChatComposer({
       <p className="mt-2 text-center text-xs text-muted-foreground">
         {webSearchEnabled
           ? "Web search is on — answers can include live sources."
-          : "ChaiGPT can make mistakes. Check important info."}
+          : "FoezGPT can make mistakes. Check important info."}
       </p>
     </form>
   );

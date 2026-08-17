@@ -12,9 +12,9 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary via-primary/80 to-primary/50 p-10 text-primary-foreground md:flex md:flex-col md:justify-between">
         <div className="flex items-center gap-3 text-lg font-semibold tracking-tight">
           <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 text-xl">
-            茶
+            F
           </span>
-          ChaiGPT
+          FoezGPT
         </div>
         <div className="space-y-6">
           <div className="space-y-3">
